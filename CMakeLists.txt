@@ -1,7 +1,23 @@
 cmake_minimum_required(VERSION 3.4)
 set(CMAKE_USER_MAKE_RULES_OVERRIDE "${CMAKE_CURRENT_SOURCE_DIR}/cmake/MSVC.cmake")
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
-project(V8 LANGUAGES CXX C ASM)
+
+
+# Read v8-version.h to get the V8 version being build
+file(READ v8/include/v8-version.h V8_VERSION_H)
+string(REGEX MATCH "V8_MAJOR_VERSION ([0-9]+)" _ "${V8_VERSION_H}")
+set(V8_MAJOR_VERSION ${CMAKE_MATCH_1})
+string(REGEX MATCH "V8_MINOR_VERSION ([0-9]+)" _ "${V8_VERSION_H}")
+set(V8_MINOR_VERSION ${CMAKE_MATCH_1})
+string(REGEX MATCH "V8_BUILD_NUMBER ([0-9]+)" _ "${V8_VERSION_H}")
+set(V8_BUILD_NUMBER ${CMAKE_MATCH_1})
+string(REGEX MATCH "V8_PATCH_LEVEL ([0-9]+)" _ "${V8_VERSION_H}")
+set(V8_PATCH_LEVEL ${CMAKE_MATCH_1})
+
+set(V8_VERSION "${V8_MAJOR_VERSION}.${V8_MINOR_VERSION}.${V8_BUILD_NUMBER}.${V8_PATCH_LEVEL}")
+message(STATUS "Configuring V8 version ${V8_VERSION}")
+
+project(V8 LANGUAGES CXX C ASM VERSION ${V8_VERSION})
 
 option(V8CMAKE_FIND_PYTHON "Enable finding python" ON)
 
@@ -82,6 +98,9 @@ string(CONCAT is-x64 $<OR:
 option(V8_ENABLE_CONCURRENT_MARKING "Enable concurrent marking" ON)
 option(V8_ENABLE_I18N "Enable Internationalization support")
 
+
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/v8/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/v8 FILES_MATCHING PATTERN "*.h")
+
 set(
   v8_defines
   $<${is-darwin}:V8_HAVE_TARGET_OS>
@@ -148,6 +167,12 @@ target_link_libraries(d8
     v8_libplatform
 )
 
+install(TARGETS d8
+        RUNTIME
+        LIBRARY
+        ARCHIVE
+)
+
 # add shell and hello-world
 add_executable(
         shell
@@ -168,6 +193,11 @@ target_link_libraries(shell
         v8_inspector
         v8_libplatform
         )
+install(TARGETS shell
+        RUNTIME
+        LIBRARY
+        ARCHIVE
+)
 
 add_executable(
         hello-world
@@ -222,6 +252,12 @@ target_include_directories(v8-i18n-support
     ${PROJECT_SOURCE_DIR}/v8
     ${PROJECT_SOURCE_DIR}/v8/src/objects
     ${PROJECT_SOURCE_DIR}/v8/include
+)
+
+install(TARGETS v8-i18n-support
+        RUNTIME
+        LIBRARY
+        ARCHIVE
 )
 
 file(GLOB api-sources RELATIVE ${PROJECT_SOURCE_DIR} CONFIGURE_DEPENDS v8/src/api/*.cc)
@@ -453,6 +489,12 @@ target_link_libraries(
     v8-bytecodes-builtin-list
 )
 
+install(TARGETS v8_base_without_compiler
+        RUNTIME
+        LIBRARY
+        ARCHIVE
+)
+
 #
 # v8_compiler
 #
@@ -483,6 +525,12 @@ target_link_libraries(v8_compiler
     v8_torque_generated
   PUBLIC
     v8-bytecodes-builtin-list
+)
+
+install(TARGETS v8_compiler
+  RUNTIME
+  LIBRARY
+  ARCHIVE
 )
 
 #
@@ -553,6 +601,12 @@ target_include_directories(v8_initializers
 
 target_link_libraries(v8_initializers PRIVATE v8_torque_generated v8-bytecodes-builtin-list)
 
+install(TARGETS v8_initializers
+        RUNTIME
+        LIBRARY
+        ARCHIVE
+)
+
 #
 # v8_snapshot
 #
@@ -592,6 +646,12 @@ add_custom_command(
   OUTPUT
     ${PROJECT_BINARY_DIR}/embedded.S
     ${PROJECT_BINARY_DIR}/snapshot.cc
+)
+
+install(TARGETS v8_snapshot
+        RUNTIME
+        LIBRARY
+        ARCHIVE
 )
 
 #
@@ -694,6 +754,12 @@ add_custom_command(
     ${inspector_files}
 )
 
+install(TARGETS v8_inspector
+        RUNTIME
+        LIBRARY
+        ARCHIVE
+)
+
 #
 # v8_libplatform
 #
@@ -727,6 +793,12 @@ target_include_directories(v8_libplatform
 
 target_link_libraries(v8_libplatform PRIVATE v8_libbase)
 
+install(TARGETS v8_libplatform
+        RUNTIME
+        LIBRARY
+        ARCHIVE
+)
+
 #
 # v8_libsampler
 #
@@ -743,6 +815,12 @@ target_compile_definitions(v8_libsampler PRIVATE $<${is-msvc}:_HAS_EXCEPTIONS=0>
 target_compile_options(v8_libsampler PRIVATE ${disable-exceptions})
 target_include_directories(v8_libsampler PRIVATE ${PROJECT_SOURCE_DIR}/v8)
 target_link_libraries(v8_libsampler PRIVATE v8_libbase)
+
+install(TARGETS v8_libsampler
+        RUNTIME
+        LIBRARY
+        ARCHIVE
+)
 
 #
 # v8_libbase
@@ -799,6 +877,12 @@ target_link_libraries(v8_libbase
     $<${is-win}:dbghelp>
 )
 
+install(TARGETS v8_libbase
+        RUNTIME
+        LIBRARY
+        ARCHIVE
+)
+
 #
 # bytecode_builtins_list_generator
 #
@@ -807,6 +891,12 @@ v8_generate_builtins_list(${PROJECT_BINARY_DIR}/generated)
 target_include_directories(v8-bytecodes-builtin-list
   INTERFACE
     ${PROJECT_BINARY_DIR}/generated
+)
+
+install(TARGETS v8-bytecodes-builtin-list
+        RUNTIME
+        LIBRARY
+        ARCHIVE
 )
 
 add_executable(
@@ -822,6 +912,7 @@ target_include_directories(bytecode_builtins_list_generator
 )
 
 target_link_libraries(bytecode_builtins_list_generator v8_libbase)
+
 
 #
 # v8_torque_generated
@@ -956,6 +1047,12 @@ add_custom_command(
     ${torque_dirs}
 )
 
+install(TARGETS v8_torque_generated
+        RUNTIME
+        LIBRARY
+        ARCHIVE
+)
+
 #
 # torque
 #
@@ -1005,4 +1102,9 @@ add_library(v8-adler32 OBJECT v8/third_party/zlib/adler32.c)
 target_include_directories(v8-adler32
   PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/v8/third_party/zlib>
+)
+install(TARGETS v8-adler32
+  RUNTIME
+  LIBRARY
+  ARCHIVE
 )
