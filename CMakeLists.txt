@@ -4,6 +4,7 @@ set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 project(V8 LANGUAGES CXX C ASM)
 
 option(V8CMAKE_FIND_PYTHON "Enable finding python" ON)
+option(V8CMAKE_ENABLE_TESTS "Enable tests" OFF)
 
 if(MSVC)
   enable_language(ASM_MASM)
@@ -1080,3 +1081,48 @@ target_include_directories(v8-adler32
   PUBLIC
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/v8/third_party/zlib>
 )
+
+if(V8CMAKE_ENABLE_TESTS)
+  enable_testing()
+  include(CTest)
+
+  set(INSTALL_GTEST OFF)
+  add_subdirectory(v8/third_party/googletest/src)
+
+  include(GoogleTest)
+
+  add_executable(
+    v8_unittests
+    v8/test/common/value-helper.cc
+    v8/test/unittests/run-all-unittests.cc
+    v8/test/unittests/test-utils.cc
+    v8/test/unittests/base/double-unittest.cc
+    v8/test/unittests/compiler/compiler-unittest.cc
+    v8/test/unittests/libplatform/default-job-unittest.cc
+    v8/test/unittests/profiler/strings-storage-unittest.cc
+  )
+
+  target_compile_definitions(v8_unittests PRIVATE $<${is-msvc}:_HAS_EXCEPTIONS=0>)
+  target_compile_options(v8_unittests PRIVATE ${disable-exceptions})
+
+  target_include_directories(v8_unittests
+    PUBLIC
+      $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/v8/include>
+      $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    PRIVATE
+      $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/v8>
+  )
+
+  target_link_libraries(v8_unittests
+    PRIVATE
+      v8_base_without_compiler
+      v8_compiler
+      v8_snapshot
+      v8_inspector
+      v8_libplatform
+      gtest
+      gmock
+  )
+
+  gtest_add_tests(TARGET v8_unittests)
+endif()
