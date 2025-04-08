@@ -14,6 +14,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/immediate-crash.h"
 #include "src/base/template-utils.h"
+#include <cstdint>
 
 V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
                                           const char* message);
